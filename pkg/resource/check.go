@@ -28,7 +28,7 @@ func (cr *CheckRequest) Validate() error {
 func Check(ctx context.Context, request CheckRequest) (*CheckResponse, error) {
 	repo, err := newRepositoryForSource(ctx, request.Source)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create repository client")
 	}
 
 	// Fetching repository tags
@@ -42,7 +42,7 @@ func Check(ctx context.Context, request CheckRequest) (*CheckResponse, error) {
 	for _, tag := range allTags {
 		v, err := semver.NewVersion(tag)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, fmt.Sprintf("failed to parse semver in tag %q", tag))
 		}
 		if latestTag == nil || v.GreaterThan(latestTag) {
 			latestTag = v
@@ -54,7 +54,7 @@ func Check(ctx context.Context, request CheckRequest) (*CheckResponse, error) {
 
 	digest, err := getDigestForTag(ctx, repo, latestTag.String())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to fetch digest for latest tag %q (parsed as %s)", latestTag.Original(), latestTag.String()))
 	}
 	return &CheckResponse{{Tag: latestTag.String(), Digest: digest}}, nil
 }
