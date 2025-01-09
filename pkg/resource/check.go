@@ -52,7 +52,7 @@ func Check(ctx context.Context, request CheckRequest) (*CheckResponse, error) {
 		return nil, fmt.Errorf("no latest tag found for source %s", request.Source.String())
 	}
 
-	digest, err := getDigestForTag(ctx, repo, latestTag.String())
+	digest, err := getDigestForTag(ctx, repo, latestTag.Original())
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to fetch digest for latest tag %q (parsed as %s)", latestTag.Original(), latestTag.String()))
 	}
