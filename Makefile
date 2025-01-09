@@ -1,6 +1,6 @@
 # Image URL to use all building/pushing image targets
-TAG ?= $(shell git rev-parse --short HEAD)
-IMG ?= ghcr.io/cloudoperators/concourse-oci-helm-chart-resource:$(TAG)
+TAG ?= $(shell git describe --abbrev=7)
+IMG ?= us-central1-docker.pkg.dev/dev-artifact-registry/docker-images/concourse-oci-helm-chart-resource:$(TAG)
 
 .PHONY: all
 all: build
