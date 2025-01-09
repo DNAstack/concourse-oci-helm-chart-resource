@@ -24,8 +24,8 @@ resources:
   - name: my.chart
     type: oci-registry
     source:
-      registry: ghcr.io/cloudoperators
-      repository: all-my-helm-charts
+      registry: ghcr.io
+      repository: cloudoperators/all-my-helm-charts
       chart_name: my-chart
 ```
 
