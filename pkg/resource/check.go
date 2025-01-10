@@ -56,5 +56,5 @@ func Check(ctx context.Context, request CheckRequest) (*CheckResponse, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to fetch digest for latest tag %q (parsed as %s)", latestTag.Original(), latestTag.String()))
 	}
-	return &CheckResponse{{Tag: latestTag.String(), Digest: digest}}, nil
+	return &CheckResponse{{Tag: latestTag.Original(), Digest: digest}}, nil
 }

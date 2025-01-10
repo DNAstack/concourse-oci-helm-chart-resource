@@ -30,8 +30,8 @@ func main() {
 	response, err := resource.Get(context.Background(), req, outputDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "get failed: %s\n", err)
-	}
-	if err := json.NewEncoder(os.Stdout).Encode(response); err != nil {
+		os.Exit(1)
+	} else if err := json.NewEncoder(os.Stdout).Encode(response); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to marshal response: %s\n", err)
 	}
 }
