@@ -6,10 +6,11 @@ package resource
 import (
 	"context"
 	"fmt"
-
 	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 	"oras.land/oras-go/v2/registry"
+	"oras.land/oras-go/v2/registry/remote"
+	"slices"
 )
 
 type (
@@ -31,30 +32,73 @@ func Check(ctx context.Context, request CheckRequest) (*CheckResponse, error) {
 		return nil, errors.Wrap(err, "failed to create repository client")
 	}
 
-	// Fetching repository tags
+	// Fetch repository tags
 	allTags, err := registry.Tags(ctx, repo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch tags")
 	}
 
-	// Sorting tags.
-	var latestTag *semver.Version
-	for _, tag := range allTags {
+	// Sort tags by semver
+	sortedSemvers, err := sortBySemver(allTags)
+	if err != nil {
+		return nil, err
+	}
+
+	// chop the list at the index of the requested version, if there was one
+	if request.Version != nil {
+		requestedVersion, err := semver.NewVersion(request.Version.Tag)
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("failed to parse semver in requested version %q", request.Version.Tag))
+		}
+		for i, version := range sortedSemvers {
+			if version.GreaterThanEqual(requestedVersion) {
+				sortedSemvers = sortedSemvers[i:]
+				break
+			}
+		}
+	} else {
+		// if no version was requested, return the latest 10 versions
+		startIndex := len(sortedSemvers) - 10
+		if startIndex < 0 {
+			startIndex = 0
+		}
+		sortedSemvers = sortedSemvers[startIndex:]
+	}
+
+	if len(sortedSemvers) == 0 {
+		return nil, fmt.Errorf("no latest tag found for source %s", request.Source.String())
+	}
+
+	resolvedVersions, err := resolveImageDigests(ctx, sortedSemvers, repo)
+	if err != nil {
+		return nil, err
+	}
+	return &resolvedVersions, nil
+}
+
+func sortBySemver(allTags []string) ([]semver.Version, error) {
+	allVersions := make([]semver.Version, len(allTags))
+	for i, tag := range allTags {
 		v, err := semver.NewVersion(tag)
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("failed to parse semver in tag %q", tag))
 		}
-		if latestTag == nil || v.GreaterThan(latestTag) {
-			latestTag = v
-		}
+		allVersions[i] = *v
 	}
-	if latestTag == nil {
-		return nil, fmt.Errorf("no latest tag found for source %s", request.Source.String())
-	}
+	slices.SortStableFunc(allVersions, func(i, j semver.Version) int {
+		return i.Compare(&j)
+	})
+	return allVersions, nil
+}
 
-	digest, err := getDigestForTag(ctx, repo, latestTag.Original())
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed to fetch digest for latest tag %q (parsed as %s)", latestTag.Original(), latestTag.String()))
+func resolveImageDigests(ctx context.Context, sortedSemvers []semver.Version, repo *remote.Repository) (CheckResponse, error) {
+	resolvedVersions := make(CheckResponse, len(sortedSemvers))
+	for i, version := range sortedSemvers {
+		digest, err := getDigestForTag(ctx, repo, version.Original())
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("failed to fetch digest for latest tag %q (parsed as %s)", version.Original(), version.String()))
+		}
+		resolvedVersions[i] = Version{Tag: version.Original(), Digest: digest}
 	}
-	return &CheckResponse{{Tag: latestTag.Original(), Digest: digest}}, nil
+	return resolvedVersions, nil
 }
