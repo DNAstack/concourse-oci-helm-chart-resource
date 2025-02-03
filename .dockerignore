@@ -1,0 +1,2 @@
+# local testing files that may contain secrets
+*.tmp.json

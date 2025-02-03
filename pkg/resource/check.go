@@ -88,7 +88,7 @@ func sortBySemver(allTags []string) []semver.Version {
 		j++
 	}
 	slices.SortStableFunc(allVersions, func(i, j semver.Version) int {
-		return i.Compare(&j)
+		return CompareGitDescribeVersions(&i, &j)
 	})
 	return allVersions
 }
