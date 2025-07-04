@@ -29,8 +29,9 @@ type (
 	}
 
 	GetResponse struct {
-		Tag    string `json:"tag"`
-		Digest string `json:"digest"`
+		Tag      string         `json:"tag"`
+		Digest   string         `json:"digest"`
+		Metadata []MetadataItem `json:"metadata,omitempty"`
 	}
 )
 
@@ -63,6 +64,17 @@ func Get(ctx context.Context, request GetRequest, outputDir string) (*GetRespons
 		return nil, err
 	}
 
+	// Extract metadata from all manifest annotations
+	var metadata []MetadataItem
+	if manifestDescriptor.Annotations != nil {
+		for key, value := range manifestDescriptor.Annotations {
+			metadata = append(metadata, MetadataItem{
+				Name:  key,
+				Value: value,
+			})
+		}
+	}
+
 	// Find different layers.
 	for _, layer := range manifestDescriptor.Layers {
 		var fileExtension string
@@ -82,8 +94,9 @@ func Get(ctx context.Context, request GetRequest, outputDir string) (*GetRespons
 	}
 
 	return &GetResponse{
-		Tag:    request.Version.Tag,
-		Digest: desc.Digest.String(),
+		Tag:      request.Version.Tag,
+		Digest:   desc.Digest.String(),
+		Metadata: metadata,
 	}, nil
 }
 
