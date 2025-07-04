@@ -2,11 +2,40 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "assigneesFromCodeOwners": true,
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
   ],
   "constraints": {
-    "go": "1.22"
+    "go": "1.23"
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Bump golangci-lint version in the Makefile",
+      "managerFilePatterns": [
+        "/^Makefile$/"
+      ],
+      "matchStrings": [
+        "GOLINT_VERSION\\s*\\?=\\s*(?<currentValue>.?(?:\\d+\\.){0,2}\\d+)"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "golangci/golangci-lint",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Bump ginkolinter version in the Makefile",
+      "managerFilePatterns": [
+        "/^Makefile$/"
+      ],
+      "matchStrings": [
+        "GINKGOLINTER_VERSION\\s*\\?=\\s*(?<currentValue>.?(?:\\d+\\.){0,2}\\d+)"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "nunnatsa/ginkgolinter",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    }
+  ],
   "packageRules": [
     {
       "groupName": "github actions",
@@ -86,17 +115,5 @@
     "gomodTidy",
     "gomodUpdateImportPaths"
   ],
-  "separateMinorPatch": true,
-  "customManagers": [
-    {
-      "customType": "regex",
-      "fileMatch": [
-        "Makefile$",
-        "\\.sh$"
-      ],
-      "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-.]+?) depName=(?<depName>[^\\s]+?)(?: (lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s.+?_(VERSION|version) *[?:]?= *\"?(?<currentValue>.+?)\"?\\s"
-      ]
-    }
-  ]
+  "separateMinorPatch": true
 }

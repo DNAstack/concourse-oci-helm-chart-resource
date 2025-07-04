@@ -19,7 +19,7 @@ import (
 
 const (
 	mediaTypeHelmChartContentArchive = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
-	mediaTypeHelmChartJson           = "application/vnd.cncf.helm.chart.v2+json"
+	mediaTypeHelmChartJSON           = "application/vnd.cncf.helm.chart.v2+json"
 )
 
 type (
@@ -69,7 +69,7 @@ func Get(ctx context.Context, request GetRequest, outputDir string) (*GetRespons
 		switch layer.MediaType {
 		case mediaTypeHelmChartContentArchive:
 			fileExtension = ".tgz"
-		case mediaTypeHelmChartJson:
+		case mediaTypeHelmChartJSON:
 			fileExtension = ".json"
 		default:
 			continue

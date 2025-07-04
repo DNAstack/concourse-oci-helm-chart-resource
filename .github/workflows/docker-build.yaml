@@ -1,36 +1,61 @@
-name: Docker Image CI
+name: Build Docker images and push to registry
 
 on:
   push:
     branches:
-      - main
-
+        - main
+    paths:
+        - cmd/**
+        - pkg/**
+        - Dockerfile
+        - go.mod
+        - go.sum
+    tags:
+      - v*.*.*
+    
 env:
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
-  # Comma separated list of platforms to build the image for.
-  PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
   build:
+    name: Build
     runs-on: [ default ]
+    continue-on-error: true
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3.9.1
+        with:
+          cosign-release: 'v2.2.3'
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3
+    
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{github.actor}}
-          password: ${{secrets.GITHUB_TOKEN}}
-      - name: Extract image metadata
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -41,16 +66,27 @@ jobs:
             org.opencontainers.image.url=https://github.com/cloudoperators/concourse-oci-helm-chart-resource
             org.opencontainers.image.source=https://github.com/cloudoperators/concourse-oci-helm-chart-resource
             org.opencontainers.image.documentation=https://github.com/cloudoperators/concourse-oci-helm-chart-resource/tree/main/README.md
-      - name: Build and push
-        uses: docker/build-push-action@v6
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           context: .
-          platforms: ${{ env.PLATFORMS }}
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
-  
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Sign the published Docker image
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
   vulnerability-scan:
     permissions:
       contents: read
@@ -63,22 +99,22 @@ jobs:
     runs-on: [ default ]
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Set sha
         id: vars
         run: echo "sha_short=sha-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # 0.31.0
         if: success()
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
           ignore-unfixed: true
           format: 'sarif'
           output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@181d5eefc20863364f96762470ba6f862bdef56b # v3
         if: always()
         with:
           sarif_file: trivy-results.sarif

@@ -1,3 +1,41 @@
+# Vendor
 vendor/**
-bin/**
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin
+testbin/*
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# editor and IDE paraphernalia
+.idea
+*.swp
+*.swo
+*~
+.vscode
+
+# symlinked main.go
+/main.go
+
+# gorleaser artifacts
+dist/**
+
+# Apple files
+.DS_Store
+
+# act artifacts needed for testing workflows
+.secrets
+.env
+act_*.json
+
+# handmade files for testing hooks locally
 *.tmp.json

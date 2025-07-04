@@ -3,7 +3,10 @@
 
 package resource
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type Source struct {
 	Registry   string `json:"registry"`
@@ -16,13 +19,13 @@ type Source struct {
 
 func (s *Source) Validate() error {
 	if s.Registry == "" {
-		return fmt.Errorf("registry cannot be empty")
+		return errors.New("registry cannot be empty")
 	}
 	if s.Repository == "" {
-		return fmt.Errorf("repository cannot be empty")
+		return errors.New("repository cannot be empty")
 	}
 	if s.ChartName == "" {
-		return fmt.Errorf("chart_name cannot be empty")
+		return errors.New("chart_name cannot be empty")
 	}
 	return nil
 }
