@@ -38,3 +38,8 @@ type Version struct {
 	Tag    string `json:"tag"`
 	Digest string `json:"digest"`
 }
+
+type MetadataItem struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
