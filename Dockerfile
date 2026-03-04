@@ -4,7 +4,7 @@ WORKDIR /concourse-oci-helm-chart-resource
 COPY . .
 RUN make build
 
-FROM --platform=${BUILDPLATFORM:-linux/amd64} alpine:3.22.0 AS run
+FROM --platform=${BUILDPLATFORM:-linux/amd64} alpine:3.22.3 AS run
 
 # upgrade all installed packages to fix potential CVEs in advance
 RUN apk upgrade --no-cache --no-progress \
