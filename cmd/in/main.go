@@ -27,7 +27,15 @@ func main() {
 	if err := req.Validate(); err != nil {
 		fmt.Fprintf(os.Stderr, "invalid source configuration: %s\n", err)
 	}
-	response, err := resource.Get(context.Background(), req, outputDir)
+
+	ctx := context.Background()
+	repo, err := resource.NewRepositoryForSource(ctx, req.Source)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create repository client: %s\n", err)
+		os.Exit(1)
+	}
+
+	response, err := resource.Get(ctx, req, outputDir, repo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "get failed: %s\n", err)
 		os.Exit(1)

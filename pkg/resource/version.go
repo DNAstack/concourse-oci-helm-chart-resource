@@ -1,9 +1,10 @@
 package resource
 
 import (
-	"github.com/Masterminds/semver/v3"
 	"regexp"
 	"strconv"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 // CompareGitDescribeVersions compares this version to another one. It returns -1, 0, or 1 if
@@ -16,7 +17,7 @@ import (
 // lower than the version without a prerelease. Compare always takes into account
 // prereleases. If you want to work with ranges using typical range syntaxes that
 // skip prereleases if the range is not looking for them use constraints.
-func CompareGitDescribeVersions(v *semver.Version, o *semver.Version) int {
+func CompareGitDescribeVersions(v, o *semver.Version) int {
 	// Compare the major, minor, and patch version for differences. If a
 	// difference is found return the comparison.
 	if d := compareSegment(v.Major(), o.Major()); d != 0 {
@@ -76,7 +77,7 @@ func comparePrerelease(v, o string) int {
 	}
 
 	// Iterate over each part of the prereleases to compare the differences.
-	for i := 0; i < l; i++ {
+	for i := range l {
 		// Since the lentgh of the parts can be different we need to create
 		// a placeholder. This is to avoid out of bounds issues.
 		stemp := ""
@@ -134,15 +135,16 @@ func comparePrePart(s, o string) int {
 	si, n2 := strconv.ParseUint(s, 10, 64)
 
 	// The case where both are strings compare the strings
-	if n1 != nil && n2 != nil {
+	switch {
+	case n1 != nil && n2 != nil:
 		if s > o {
 			return 1
 		}
 		return -1
-	} else if n1 != nil {
+	case n1 != nil:
 		// o is a string and s is a number
 		return -1
-	} else if n2 != nil {
+	case n2 != nil:
 		// s is a string and o is a number
 		return 1
 	}

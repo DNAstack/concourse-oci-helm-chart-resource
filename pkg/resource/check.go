@@ -12,7 +12,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 	"oras.land/oras-go/v2/registry"
-	"oras.land/oras-go/v2/registry/remote"
 )
 
 type (
@@ -28,12 +27,7 @@ func (cr *CheckRequest) Validate() error {
 	return cr.Source.Validate()
 }
 
-func Check(ctx context.Context, request CheckRequest) (*CheckResponse, error) {
-	repo, err := newRepositoryForSource(ctx, request.Source)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create repository client")
-	}
-
+func Check(ctx context.Context, request CheckRequest, repo Repository) (*CheckResponse, error) {
 	// Fetch repository tags
 	allTags, err := registry.Tags(ctx, repo)
 	if err != nil {
@@ -68,7 +62,7 @@ func Check(ctx context.Context, request CheckRequest) (*CheckResponse, error) {
 		return nil, fmt.Errorf("no latest tag found for source %s", request.Source.String())
 	}
 
-	resolvedVersions, err := resolveImageDigests(ctx, sortedSemvers, repo)
+	resolvedVersions, err := resolveImageDigests(ctx, sortedSemvers, repo, request.Source.String())
 	if err != nil {
 		return nil, err
 	}
@@ -93,10 +87,10 @@ func sortBySemver(allTags []string) []semver.Version {
 	return allVersions
 }
 
-func resolveImageDigests(ctx context.Context, sortedSemvers []semver.Version, repo *remote.Repository) (CheckResponse, error) {
+func resolveImageDigests(ctx context.Context, sortedSemvers []semver.Version, repo Repository, source string) (CheckResponse, error) {
 	resolvedVersions := make(CheckResponse, len(sortedSemvers))
 	for i, version := range sortedSemvers {
-		digest, err := getDigestForTag(ctx, repo, version.Original())
+		digest, err := getDigestForTag(ctx, repo, source, version.Original())
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("failed to fetch digest for latest tag %q (parsed as %s)", version.Original(), version.String()))
 		}
