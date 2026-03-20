@@ -48,6 +48,10 @@ fmt: goimports
 lint: golint
 	$(GOLINT) run -v --timeout 5m	
 
+.PHONY: test
+test:
+	go test ./...
+
 .PHONY: check
 check: fmt lint
 
