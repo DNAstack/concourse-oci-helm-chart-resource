@@ -71,12 +71,13 @@ func Get(ctx context.Context, request GetRequest, outputDir string, repo Reposit
 	}
 
 	// Find different layers.
+	configMediaType := request.Source.GetConfigMediaType()
 	for _, layer := range manifestDescriptor.Layers {
 		var fileExtension string
 		switch layer.MediaType {
 		case mediaTypeHelmChartContentArchive:
 			fileExtension = ".tgz"
-		case mediaTypeHelmChartJSON:
+		case mediaTypeHelmChartJSON, configMediaType:
 			fileExtension = ".json"
 		default:
 			continue
