@@ -42,12 +42,7 @@ func (gr *GetRequest) Validate() error {
 	return gr.Source.Validate()
 }
 
-func Get(ctx context.Context, request GetRequest, outputDir string) (*GetResponse, error) {
-	repo, err := newRepositoryForSource(ctx, request.Source)
-	if err != nil {
-		return nil, err
-	}
-
+func Get(ctx context.Context, request GetRequest, outputDir string, repo Repository) (*GetResponse, error) {
 	store := memory.New()
 	desc, err := oras.Copy(ctx, repo, request.Version.Tag, store, request.Version.Tag, oras.DefaultCopyOptions)
 	if err != nil {

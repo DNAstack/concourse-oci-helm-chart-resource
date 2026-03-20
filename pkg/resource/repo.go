@@ -7,12 +7,22 @@ import (
 	"context"
 	"fmt"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	oras "oras.land/oras-go/v2"
+	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 	"oras.land/oras-go/v2/registry/remote/retry"
 )
+
+// Repository is the interface that Check and Get need from the OCI registry.
+type Repository interface {
+	oras.ReadOnlyTarget
+	registry.TagLister
+	Resolve(ctx context.Context, ref string) (ocispec.Descriptor, error)
+}
 
 var allowedMediaTypes = []string{
 	"application/vnd.docker.distribution.manifest.v2+json",
@@ -22,7 +32,7 @@ var allowedMediaTypes = []string{
 	"*/*",
 }
 
-func newRepositoryForSource(_ context.Context, s Source) (*remote.Repository, error) {
+func NewRepositoryForSource(_ context.Context, s Source) (*remote.Repository, error) {
 	repo, err := remote.NewRepository(s.String())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create repository from source %s", s.String())
@@ -52,8 +62,8 @@ func newRepositoryForSource(_ context.Context, s Source) (*remote.Repository, er
 	return repo, nil
 }
 
-func getDigestForTag(ctx context.Context, repo *remote.Repository, tag string) (string, error) {
-	desc, err := repo.Resolve(ctx, fmt.Sprintf("%s:%s", repo.Reference.String(), tag))
+func getDigestForTag(ctx context.Context, repo Repository, source, tag string) (string, error) {
+	desc, err := repo.Resolve(ctx, fmt.Sprintf("%s:%s", source, tag))
 	if err != nil {
 		return "", err
 	}
