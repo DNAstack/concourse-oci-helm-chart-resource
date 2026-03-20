@@ -15,6 +15,15 @@ type Source struct {
 
 	AuthUsername string `json:"auth_username,omitempty"`
 	AuthPassword string `json:"auth_password,omitempty"`
+
+	ConfigMediaType string `json:"config_media_type,omitempty"`
+}
+
+func (s *Source) GetConfigMediaType() string {
+	if s.ConfigMediaType != "" {
+		return s.ConfigMediaType
+	}
+	return "application/vnd.cncf.helm.config.v1+json"
 }
 
 func (s *Source) Validate() error {
