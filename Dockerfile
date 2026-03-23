@@ -1,10 +1,12 @@
 FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.24 AS build
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 
 WORKDIR /concourse-oci-helm-chart-resource
 COPY . .
-RUN make build
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} make build
 
-FROM --platform=${BUILDPLATFORM:-linux/amd64} alpine:3.22.0 AS run
+FROM --platform=${TARGETPLATFORM:-linux/amd64} alpine:3.22.0 AS run
 
 # upgrade all installed packages to fix potential CVEs in advance
 RUN apk upgrade --no-cache --no-progress \
