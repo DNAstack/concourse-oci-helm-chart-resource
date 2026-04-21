@@ -231,7 +231,7 @@ func TestPut(t *testing.T) {
 		if err := os.MkdirAll(chartDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		saveTestChart(t, chartDir, "mychart", "A test chart", "1.0.0")
+		saveTestChart(t, chartDir, "mychart", "Annotations test chart", "1.0.0")
 
 		target := memory.New()
 		req := PutRequest{Source: source, Params: PutParams{ChartDir: "output"}}
@@ -243,7 +243,7 @@ func TestPut(t *testing.T) {
 		m := fetchManifest(t, target, resp.Version.Tag)
 		want := map[string]string{
 			ocispec.AnnotationTitle:       "mychart",
-			ocispec.AnnotationDescription: "A test chart",
+			ocispec.AnnotationDescription: "Annotations test chart",
 			ocispec.AnnotationVersion:     "1.0.0",
 		}
 		for k, v := range want {
