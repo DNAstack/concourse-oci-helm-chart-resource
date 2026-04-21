@@ -6,14 +6,15 @@ package resource
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"helm.sh/helm/v3/pkg/chart/loader"
 	oras "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/memory"
 )
@@ -54,22 +55,25 @@ func Put(ctx context.Context, request PutRequest, inputDir string, target oras.T
 		return nil, fmt.Errorf("multiple .tgz files found in %s, expected exactly one", chartDir)
 	}
 
-	chartPath := matches[0]
-	chartFilename := filepath.Base(chartPath)
-
-	// Extract version tag from filename: <chart-name>-<version>.tgz
-	prefix := request.Source.ChartName + "-"
-	if !strings.HasPrefix(chartFilename, prefix) {
-		return nil, fmt.Errorf("chart filename %q does not start with expected prefix %q", chartFilename, prefix)
-	}
-	tag := strings.TrimSuffix(strings.TrimPrefix(chartFilename, prefix), ".tgz")
-	if tag == "" {
-		return nil, fmt.Errorf("could not extract version tag from filename %q", chartFilename)
-	}
-
-	chartContent, err := os.ReadFile(chartPath)
+	chartContent, err := os.ReadFile(matches[0])
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read chart file")
+	}
+
+	loadedChart, err := loader.LoadArchive(bytes.NewReader(chartContent))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load chart archive")
+	}
+
+	if loadedChart.Metadata.Name != request.Source.ChartName {
+		return nil, fmt.Errorf("chart name %q in archive does not match source chart_name %q",
+			loadedChart.Metadata.Name, request.Source.ChartName)
+	}
+	tag := loadedChart.Metadata.Version
+
+	configContent, err := json.Marshal(loadedChart.Metadata)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal chart metadata")
 	}
 
 	fmt.Fprintf(os.Stderr, "pushing %s version %s to %s\n", request.Source.ChartName, tag, request.Source.String())
@@ -86,8 +90,7 @@ func Put(ctx context.Context, request PutRequest, inputDir string, target oras.T
 		return nil, errors.Wrap(err, "failed to push chart layer to store")
 	}
 
-	// Push empty helm chart config
-	configContent := []byte("{}")
+	// Push helm chart config blob (Chart.yaml serialized as JSON)
 	configDesc := ocispec.Descriptor{
 		MediaType: request.Source.GetConfigMediaType(),
 		Digest:    digest.FromBytes(configContent),
@@ -97,10 +100,17 @@ func Put(ctx context.Context, request PutRequest, inputDir string, target oras.T
 		return nil, errors.Wrap(err, "failed to push config to store")
 	}
 
-	// Pack OCI manifest
+	// Pack OCI manifest with annotations that `helm push` would set, so
+	// consumers can resolve chart name/description/version without fetching
+	// and unpacking the chart archive.
 	packOpts := oras.PackManifestOptions{
 		Layers:           []ocispec.Descriptor{chartDesc},
 		ConfigDescriptor: &configDesc,
+		ManifestAnnotations: map[string]string{
+			ocispec.AnnotationTitle:       loadedChart.Metadata.Name,
+			ocispec.AnnotationDescription: loadedChart.Metadata.Description,
+			ocispec.AnnotationVersion:     loadedChart.Metadata.Version,
+		},
 	}
 	manifestDesc, err := oras.PackManifest(ctx, store, oras.PackManifestVersion1_1, "", packOpts)
 	if err != nil {
