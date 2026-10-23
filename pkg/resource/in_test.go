@@ -5,9 +5,11 @@ package resource
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/opencontainers/go-digest"
@@ -130,11 +132,11 @@ func TestGet(t *testing.T) {
 		}
 
 		// Verify response fields.
-		if resp.Tag != tag {
-			t.Errorf("expected tag %q, got %q", tag, resp.Tag)
+		if resp.Version.Tag != tag {
+			t.Errorf("expected tag %q, got %q", tag, resp.Version.Tag)
 		}
-		if resp.Digest != manifestDesc.Digest.String() {
-			t.Errorf("expected digest %q, got %q", manifestDesc.Digest.String(), resp.Digest)
+		if resp.Version.Digest != manifestDesc.Digest.String() {
+			t.Errorf("expected digest %q, got %q", manifestDesc.Digest.String(), resp.Version.Digest)
 		}
 
 		// Verify the manifest JSON file was written.
@@ -178,6 +180,37 @@ func TestGet(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("expected metadata 'org.example.chart=test', got: %v", resp.Metadata)
+		}
+	})
+
+	t.Run("JSON output nests the fetched chart under a top-level version key", func(t *testing.T) {
+		repo, manifestDesc := buildChartRepo(t, tag)
+
+		req := GetRequest{Source: source, Version: Version{Tag: tag}}
+		resp, err := Get(context.Background(), req, t.TempDir(), repo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		encoded, err := json.Marshal(resp)
+		if err != nil {
+			t.Fatalf("failed to marshal response: %v", err)
+		}
+		var decoded struct {
+			Version  map[string]string `json:"version"`
+			Metadata []MetadataItem    `json:"metadata"`
+		}
+		if err := json.Unmarshal(encoded, &decoded); err != nil {
+			t.Fatalf("failed to unmarshal response: %v", err)
+		}
+		if decoded.Version["tag"] != tag {
+			t.Errorf("expected version.tag %q, got %q in %s", tag, decoded.Version["tag"], encoded)
+		}
+		if decoded.Version["digest"] != manifestDesc.Digest.String() {
+			t.Errorf("expected version.digest %q, got %q in %s", manifestDesc.Digest.String(), decoded.Version["digest"], encoded)
+		}
+		if !slices.Contains(decoded.Metadata, MetadataItem{Name: "org.example.chart", Value: "test"}) {
+			t.Errorf("expected metadata 'org.example.chart=test', got: %v", decoded.Metadata)
 		}
 	})
 }

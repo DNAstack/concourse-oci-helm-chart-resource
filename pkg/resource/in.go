@@ -29,8 +29,7 @@ type (
 	}
 
 	GetResponse struct {
-		Tag      string         `json:"tag"`
-		Digest   string         `json:"digest"`
+		Version  Version        `json:"version"`
 		Metadata []MetadataItem `json:"metadata,omitempty"`
 	}
 )
@@ -90,8 +89,7 @@ func Get(ctx context.Context, request GetRequest, outputDir string, repo Reposit
 	}
 
 	return &GetResponse{
-		Tag:      request.Version.Tag,
-		Digest:   desc.Digest.String(),
+		Version:  Version{Tag: request.Version.Tag, Digest: desc.Digest.String()},
 		Metadata: metadata,
 	}, nil
 }
